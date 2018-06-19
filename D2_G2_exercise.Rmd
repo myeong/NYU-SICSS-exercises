@@ -1,0 +1,98 @@
+---
+title: "Day2 Group Exercise"
+author: "Myeong Lee, Anna Skarpelis, Crystal Moore, Andrew Wolf"
+date: "6/19/2018"
+output: html_document
+---
+
+# ANOVA
+
+```{r}
+library(Rfacebook)
+library(ggplot2)
+library(dplyr)
+library(stringr)
+library(readr)
+
+token <- "EAACEdEose0cBAAKvLRWEacfNIdJExFm2GakAIT5vSNC6xtfkZCzNxO4ZCKf4R5F7HfdcGDz4zbxt5eikpAtZCDroWj9VKCysiyIjC287Dvade2ZATXSXHd7XpWZABmus9AnytuMtGpccgiAovDZBbsU5fyynm7PfxFuCSnyQgbRZCknUKVS3bUS5VhmQdjRGNQZD"
+
+nyt <- getPage("156609491019905", token=token, n=200)
+ndwa <- getPage("357750373755", token=token, n=200)
+write.table(nyt, "nyt.csv", row.names=F, col.names=F, sep=",")
+write.table(ndwa, "ndwa.csv", row.names=F, col.names=F, sep=",")
+# nyt <- read_delim("nyt.csv", delim = ",",col_names = TRUE ) 
+# ndwa <- read_delim("ndwa.csv", delim = ",",col_names = TRUE ) 
+
+nyt$type <- as.factor(nyt$type)
+ndwa$type <- as.factor(ndwa$type)
+
+# Types vs. the Number of Likes for NYT
+fit <- aov(likes_count ~ type, data=nyt)
+summary(fit) 
+
+ggplot(nyt, aes(x = type, y = likes_count, colour = type)) +
+  geom_boxplot(fill = "grey80", colour = "blue") + 
+  scale_x_discrete() + xlab("Posting Type") + ylim(c(0,100)) +
+  ylab("Like Count") + geom_point(size = 0.5)
+
+# Types vs. the Number of Likes for NDWA
+fit2 <- aov(likes_count ~ type, data=ndwa)
+summary(fit2) 
+
+ggplot(ndwa, aes(x = type, y = likes_count, colour = type)) +
+  geom_boxplot(fill = "grey80", colour = "blue") + 
+  scale_x_discrete() + xlab("Posting Type") + ylim(c(0,100)) +
+  ylab("Like Count") + geom_point(size = 0.5)
+
+
+# Aggregation
+agg <- nyt %>% group_by(type) %>% summarise(likes = sum(likes_count))
+ggplot(data=agg, aes(x=type, y=likes)) + geom_bar(stat="identity", fill="red")
+
+
+```
+
+
+# Regressions
+```{r}
+
+# Regressions
+
+fit <- lm(likes_count ~ comments_count, data=nyt)
+summary(fit)
+
+ggplot(nyt, aes(x = comments_count, y = likes_count)) + geom_point(color='blue', size=0.2) + 
+ ylim(c(0,100)) + xlim(c(0,50))  + geom_smooth(method = "lm", se = FALSE, color="red") 
+
+fit <- lm(likes_count ~ comments_count, data=ndwa)
+summary(fit)
+
+ggplot(ndwa, aes(x = comments_count, y = likes_count))+ geom_point(color='blue', size=0.2) + 
+ ylim(c(0,100)) + xlim(c(0,50))  + geom_smooth(method = "lm", se = FALSE, color="red")  
+
+
+```
+
+
+# Term Frequency of the Posting
+```{r}
+
+# Term frequency
+nyt$freq<-str_count(nyt$message,'\\w+')
+
+fit <- lm(freq ~ comments_count, data=nyt)
+summary(fit)
+
+ggplot(nyt, aes(x = comments_count, y = freq))+ geom_point(color='blue', size=0.2) + 
+ ylim(c(0,500)) + xlim(c(0,50))  + geom_smooth(method = "lm", se = FALSE, color="red")  
+```
+
+
+```{r}
+
+agg2 <- nyt %>% group_by(type) %>% summarise(shares = sum(shares_count), likes = sum(likes_count))
+ggplot(data=agg2, aes(x=likes, y=shares, color=type)) + geom_point()
+ggplot(nyt, aes(x=likes_count, y=shares_count, color=type)) + geom_point() + scale_x_log10() + scale_y_log10()
+ggplot(nyt, aes(x=likes_count, y=shares_count, color=type, size=comments_count)) + geom_point() + scale_x_log10() + scale_y_log10()
+```
+
