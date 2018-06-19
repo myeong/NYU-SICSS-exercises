@@ -1,4 +1,4 @@
-#Team 2's Exercise on Day 2, NYU
+# Team 2's Exercise on Day 2, NYU
 
 ### Myeong Lee, Anna Skarpelis, Crystal Moore, Andrew Wolf
 
