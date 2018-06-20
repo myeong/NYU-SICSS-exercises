@@ -1,0 +1,116 @@
+---
+title: "Day3 Group4 Ex"
+author: "Myeong Lee"
+date: "6/20/2018"
+output: html_document
+---
+
+# Corpus
+```{r}
+library(tm)
+library(tidytext)
+library(dplyr)
+library(SnowballC)
+library(e1071)
+library(Hmisc)
+library(randomForest)
+library(caret)
+
+setwd("/Users/myeong/git/SICSS_NYU/day3_team4_ex/")
+load(url("https://cbail.github.io/Trump_Tweets.Rdata"))
+trump_corpus <- Corpus(VectorSource(as.vector(trumptweets$text))) 
+
+```
+
+
+# Text network ("textnets" package)
+```{r}
+library(textnets)
+
+# this is a tidytext object 
+prepped_trump <- PrepText(trumptweets, groupvar = "status_id", textvar = "text", node_type = "groups", tokenizer = "words", pos = "nouns", remove_stop_words = TRUE, compound_nouns = TRUE)
+
+save(prepped_trump, file = "prepped_trump.Rdata")
+
+# this is an iGraph object (disparity filters)
+trump_text_network <- CreateTextnet(prepped_trump)
+VisTextNet(trump_text_network, label_degree_cut = 0)
+
+# D3-based Viz
+library(htmlwidgets)
+vis <- VisTextNetD3(sotu_text_network, 
+                      height=300,
+                      width=400,
+                      bound=FALSE,
+                      zoom=FALSE,
+                      charge=-30)
+saveWidget(vis, "sotu_textnet.html")
+
+# Tuning parameter Alpha 
+VisTextNet(trump_text_network, alpha=.1, label_degree_cut = 2)
+
+# Community detection
+trump_communities <- TextCommunities(trump_text_network)
+head(trump_communities)
+
+top_words_modularity_classes <- InterpretText(trump_text_network, prepped_trump)
+head(top_words_modularity_classes, 10)
+
+# Centralities
+text_centrality <- TextCentrality(trump_text_network)
+text_centrality$id <-(rownames(text_centrality))
+
+```
+
+
+# Topic Models
+```{r}
+#Document-Term Matrix
+trump_DTM <-
+  trumptweets %>%
+  count(status_id, text) %>%
+  cast_dtm(status_id, text, n)
+
+#topicmodels
+library(topicmodels)
+DT_topic_model<-LDA(trump_DTM, k=10, control = list(seed = 321))
+
+
+gammaDF <- as.data.frame(DT_topic_model@gamma) 
+names(gammaDF) <- c(1:10)
+
+toptopics <- as.data.frame(cbind(document = row.names(gammaDF), 
+  topic = apply(gammaDF,1,function(x) names(gammaDF)[which(x==max(x))])))
+```
+
+
+# Predictions
+```{r}
+trumptweets <- trumptweets %>% left_join(text_centrality, by= c("status_id" = "id"))
+trumptweets <- cbind (trumptweets, toptopics)
+
+tfidf <- read.delim("trump_tfidf.csv", sep = ",")
+tfidf <- tfidf %>% group_by(created_at) %>% summarise(tf = mean(tf), tfidf = mean(tf_idf))
+
+sentiment <- read.delim("trumpsent.csv", sep = ",")
+
+trumptweets$created_at <- as.character(trumptweets$created_at)
+trumptweets$created_at <- factor(trumptweets$created_at)
+trumptweets <- trumptweets %>% left_join(tfidf, by= c("created_at"))
+trumptweets$topic <- as.factor(trumptweets$topic)
+
+control <- trainControl(method="repeatedcv", number=10, repeats=3, search="random")
+seed <- 7
+set.seed(seed)
+
+rf_default <- train(favorite_count ~ tf + tfidf + topic + betweenness_centrality + closness_centrality, data=trumptweets, method="rf", tuneLength=15, trControl=control, na.action=na.omit)
+print(rf_default)
+
+
+iris.rf <- randomForest(retweet_count ~ tf + tfidf + topic + betweenness_centrality + closness_centrality, data=trumptweets, importance=TRUE, proximity=TRUE,na.action=na.omit)
+
+
+print(iris.rf)
+
+```
+
