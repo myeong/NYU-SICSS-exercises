@@ -1,0 +1,16 @@
+Myeong Lee,
+myeong@umd.edu
+
+Joanna Pepin,
+jpepin@umd.edu
+
+Andrew Wolf,
+andrew.wolf2@gmail.com
+
+Elliot Stoller,
+estoller@hbs.edu
+
+Danya Lagos,
+danya@uchicago.edu
+
+We imputed missing values using mean values for each variable, then used SVM to train the model. Since there were so many background variables that can be used as features, we roughly explored the ranges of predictors to see what range makes the most variability in the predictors within the trainset, and finally set 2:70 variables as the features for the model (more variables or fewer variables make it worse).
